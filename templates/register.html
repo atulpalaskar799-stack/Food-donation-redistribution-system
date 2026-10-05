@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Register{% endblock %}
+{% block content %}<div class="auth-card card p-4 mx-auto"><h2>Create account</h2><form id="regForm">
+<input class="form-control mb-2" name="name" placeholder="Full name" required><input class="form-control mb-2" name="email" type="email" placeholder="Email" required>
+<input class="form-control mb-2" name="phone" placeholder="Phone"><input class="form-control mb-2" name="password" type="password" minlength="6" placeholder="Password (6+ characters)" required>
+<select class="form-select mb-2" name="role" id="role" required><option value="">Select role</option><option value="donor">Donor</option><option value="ngo">NGO / Food Bank</option><option value="volunteer">Volunteer</option></select>
+<div id="extra"></div><button class="btn btn-primary w-100 mt-2">Register</button></form><p class="mt-3">Already registered? <a href="/login">Login</a></p></div>{% endblock %}
+{% block scripts %}<script>
+const role=document.getElementById('role');role.onchange=()=>document.getElementById('extra').innerHTML=role.value==='ngo'?'<input class="form-control mb-2" name="organization_name" placeholder="NGO name" required><input class="form-control mb-2" name="address" placeholder="NGO address">':role.value==='volunteer'?'<input class="form-control mb-2" name="area" placeholder="Service area">':'';
+document.getElementById('regForm').onsubmit=async e=>{e.preventDefault();const r=await api('/api/auth/register','POST',Object.fromEntries(new FormData(e.target)));if(r.message) location.href='/login';};
+</script>{% endblock %}

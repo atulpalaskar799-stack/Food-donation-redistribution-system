@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Assignments{% endblock %}
+{% block content %}<h2>Assignments</h2>
+{% if user.role=='admin' %}<div class="card p-3 mb-3"><h5>Assign Accepted Donation</h5><form id="af" class="row g-2"><div class="col-md-5"><select id="donation_id" name="donation_id" class="form-select" required></select></div><div class="col-md-5"><select id="volunteer_id" name="volunteer_id" class="form-select" required></select></div><div class="col-md-2"><button class="btn btn-primary w-100">Assign</button></div></form></div>{% endif %}
+<div class="card p-3"><table class="table" id="t"></table></div>{% endblock %}
+{% block scripts %}<script>
+async function load(){let r=await api('/api/assignments');t.innerHTML='<tr><th>Food</th><th>Volunteer</th><th>Pickup</th><th>Delivery</th></tr>'+r.assignments.map(x=>`<tr><td>${x.food_name}</td><td>${x.volunteer_name||'Me'}</td><td>${x.pickup_status}</td><td>${x.delivery_status}</td></tr>`).join('')}
+{% if user.role=='admin' %}async function setup(){let d=await api('/api/donations'),u=await api('/api/admin/users');donation_id.innerHTML='<option value="">Select accepted donation</option>'+d.donations.filter(x=>x.status==='accepted').map(x=>`<option value="${x.donation_id}">${x.food_name} #${x.donation_id}</option>`).join('');volunteer_id.innerHTML='<option value="">Select volunteer</option>'+u.users.filter(x=>x.role==='volunteer'&&x.status==='active').map(x=>`<option value="${x.user_id}">${x.name}</option>`).join('')}af.onsubmit=async e=>{e.preventDefault();await api('/api/assignments','POST',Object.fromEntries(new FormData(e.target)));e.target.reset();load();setup()};setup();{% endif %}load();
+</script>{% endblock %}

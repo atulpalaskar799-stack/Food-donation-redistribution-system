@@ -1,0 +1,128 @@
+
+{% extends "base.html" %}
+
+{% block title %}Donor Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2>Donor Dashboard</h2>
+        <p class="text-muted">Welcome, {{ user.name }}</p>
+    </div>
+    <a href="/donations/new" class="btn btn-primary">
+        + New Donation
+    </a>
+</div>
+
+<!-- Donor Statistics -->
+<div class="row g-3" id="stats">
+    <div class="col-12">
+        <p>Loading your dashboard...</p>
+    </div>
+</div>
+
+<!-- My Donations -->
+<div class="card p-3 mt-3">
+    <h5>My Donations</h5>
+    <div class="table-responsive">
+        <table class="table" id="donations"></table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function load() {
+    try {
+        const m = await api('/api/me');
+        const d = await api('/api/donations');
+
+        const donations = d.donations || [];
+
+        // Count successfully redistributed donations
+       
+const successfulDonations = donations.filter(
+    x => x.status === 'delivered' ||
+         x.status === 'successfully_redistributed'
+).length;
+
+        document.getElementById('stats').innerHTML = `
+            <div class="col-md-4">
+                <div class="stat">
+                    <b>${m.points.points}</b>
+                    <span>Total Points</span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat">
+                    <b>${m.points.activities}</b>
+                    <span>Positive Point Activities</span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat">
+                    <b>${successfulDonations}</b>
+                    <span>Successful Donations</span>
+                </div>
+            </div>
+        `;
+
+        const table = document.getElementById('donations');
+
+        if (donations.length === 0) {
+            table.innerHTML = `
+                <tr>
+                    <td class="text-center text-muted">
+                        No donations found. Create your first donation!
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Food</th>
+                    <th>Quantity</th>
+                    <th>Expiry</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${donations.map(x => `
+                    <tr>
+                        <td>${x.food_name}</td>
+                        <td>${x.quantity} ${x.unit}</td>
+                        <td>${x.expiry_at}</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                ${x.status.replaceAll('_', ' ')}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        `;
+
+    } catch (error) {
+        console.error('Dashboard loading error:', error);
+
+        document.getElementById('stats').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger">
+                    Dashboard data load झाले नाही.
+                    Please refresh the page and try again.
+                </div>
+            </div>
+        `;
+    }
+}
+
+load();
+</script>
+{% endblock %}

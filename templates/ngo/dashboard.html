@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}NGO Dashboard{% endblock %}
+{% block content %}<div class="d-flex justify-content-between"><div><h2>NGO Dashboard</h2><p class="text-muted">Welcome, {{user.name}}</p></div><a class="btn btn-primary" href="/requirements/new">+ New Requirement</a></div>
+<div id="verification" class="alert mt-3"></div><div class="card p-3"><div class="d-flex justify-content-between"><h5>Available Matches</h5><button class="btn btn-outline-primary btn-sm" onclick="runMatch()">Run Smart Matching</button></div><div class="table-responsive"><table class="table" id="matches"></table></div></div>
+<div class="card p-3 mt-3"><h5>Available Donations</h5><div class="table-responsive"><table class="table" id="donations"></table></div></div>{% endblock %}
+{% block scripts %}<script>
+async function load(){let p=await api('/api/profile');verification.innerHTML='Verification: <b>'+p.profile.verification_status+'</b>';let m=await api('/api/matches');matches.innerHTML='<tr><th>Food</th><th>NGO</th><th>Score</th><th>Action</th></tr>'+m.matches.filter(x=>x.organization_name===p.profile.organization_name||x.donation_status==='matched').map(x=>`<tr><td>${x.food_name}</td><td>${x.organization_name}</td><td>${x.match_score}</td><td><button class="btn btn-sm btn-success" onclick="accept(${x.match_id})">Accept</button></td></tr>`).join('');let d=await api('/api/donations');donations.innerHTML='<tr><th>Food</th><th>Qty</th><th>Expiry</th></tr>'+d.donations.map(x=>`<tr><td>${x.food_name}</td><td>${x.quantity} ${x.unit}</td><td>${x.expiry_at}</td></tr>`).join('')}
+async function runMatch(){await api('/api/matches','POST',{});load()} async function accept(id){await api('/api/matches/'+id+'/accept','POST',{});load()} load();
+</script>{% endblock %}

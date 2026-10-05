@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}Food Requirement{% endblock %}
+{% block content %}<div class="card p-4"><h2>Create Food Requirement</h2><form id="req" class="row g-3">
+<div class="col-md-6"><label>Category</label><select class="form-select" name="category_id" id="category_id" required></select></div>
+<div class="col-md-3"><label>Quantity</label><input class="form-control" name="quantity_required" type="number" min=".01" step=".01" required></div>
+<div class="col-md-3"><label>Unit</label><input class="form-control" name="unit" required></div>
+<div class="col-md-6"><label>Required by</label><input class="form-control" name="needed_by" type="datetime-local" required></div>
+<div class="col-md-6"><label>Location</label><input class="form-control" name="location" required></div>
+<div class="col-12"><textarea class="form-control" name="description" placeholder="Description / notes"></textarea></div><button class="btn btn-primary">Create Requirement</button></form></div>{% endblock %}
+{% block scripts %}<script>(async()=>{let c=await api('/api/categories');category_id.innerHTML=c.categories.map(x=>`<option value="${x.category_id}">${x.name}</option>`).join('')})();req.onsubmit=async e=>{e.preventDefault();let r=await api('/api/requirements','POST',Object.fromEntries(new FormData(e.target)));if(r.requirement_id)location.href='/ngo'};</script>{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}FoodShare — Food Donation & Redistribution{% endblock %}
+{% block content %}
+<section class="hero p-5 rounded-4 mb-4"><h1 class="display-5 fw-bold">Food should reach people, not bins.</h1>
+<p class="lead">Connect donors, verified NGOs and volunteers through one simple redistribution platform.</p>
+{% if not user %}<a class="btn btn-light btn-lg" href="/register">Get Started</a>{% else %}<a class="btn btn-light btn-lg" href="/dashboard">Open Dashboard</a>{% endif %}</section>
+<div class="row g-3"><div class="col-md-3"><div class="card p-3"><h5>Donate</h5><p>List safe surplus food with expiry and pickup details.</p></div></div>
+<div class="col-md-3"><div class="card p-3"><h5>Match</h5><p>Match supply with verified NGO requirements using score-based logic.</p></div></div>
+<div class="col-md-3"><div class="card p-3"><h5>Deliver</h5><p>Track volunteer pickup and delivery status.</p></div></div>
+<div class="col-md-3"><div class="card p-3"><h5>Rank</h5><p>Earn transparent points for successful activities.</p></div></div></div>
+{% endblock %}

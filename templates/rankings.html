@@ -1,0 +1,159 @@
+```html
+{% extends "base.html" %}
+
+{% block title %}Leaderboard{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2>Contribution Leaderboard</h2>
+        <p class="text-muted mb-0">
+            View rankings by user category and time period.
+        </p>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <select id="cat" class="form-select w-auto">
+        <option value="overall">Overall</option>
+        <option value="donor">Donors</option>
+        <option value="ngo">NGOs</option>
+        <option value="volunteer">Volunteers</option>
+    </select>
+
+    <select id="period" class="form-select w-auto">
+        <option value="all_time">All time</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+    </select>
+
+    <button
+        type="button"
+        id="applyFilter"
+        class="btn btn-primary"
+        onclick="loadRankings()">
+        Apply Filter
+    </button>
+</div>
+
+<div class="card p-3">
+    <div id="loading" class="text-muted">
+        Loading leaderboard...
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="board">
+        </table>
+    </div>
+
+    <div id="emptyMessage" class="text-muted text-center p-3"
+         style="display: none;">
+        No rankings found for this category and period.
+    </div>
+
+    <div id="errorMessage" class="text-danger text-center p-3"
+         style="display: none;">
+        Failed to load leaderboard. Please try again.
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadRankings() {
+    const category = document.getElementById("cat").value;
+    const period = document.getElementById("period").value;
+
+    const board = document.getElementById("board");
+    const loading = document.getElementById("loading");
+    const emptyMessage = document.getElementById("emptyMessage");
+    const errorMessage = document.getElementById("errorMessage");
+    const applyButton = document.getElementById("applyFilter");
+
+    loading.style.display = "block";
+    loading.textContent = "Loading leaderboard...";
+    board.innerHTML = "";
+    emptyMessage.style.display = "none";
+    errorMessage.style.display = "none";
+    applyButton.disabled = true;
+
+    try {
+        const url = `/api/rankings?category=${encodeURIComponent(category)}&period=${encodeURIComponent(period)}`;
+
+        const response = await api(url);
+
+        if (!response || !Array.isArray(response.rankings)) {
+            throw new Error("Invalid leaderboard response");
+        }
+
+        // Extra frontend filtering ensures only the selected role is displayed.
+        let rankings = response.rankings;
+
+        if (category !== "overall") {
+            rankings = rankings.filter(
+                user => String(user.role).toLowerCase() === category
+            );
+        }
+
+        if (rankings.length === 0) {
+            emptyMessage.style.display = "block";
+            return;
+        }
+
+        board.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Points</th>
+                    <th>Successful Activities</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rankings.map((user, index) => `
+                    <tr>
+                        <td><strong>#${index + 1}</strong></td>
+                        <td>${escapeHTML(user.name)}</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                ${escapeHTML(user.role)}
+                            </span>
+                        </td>
+                        <td><strong>${Number(user.points) || 0}</strong></td>
+                        <td>${Number(user.successful_activities) || 0}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        `;
+
+    } catch (error) {
+        console.error("Leaderboard error:", error);
+        errorMessage.style.display = "block";
+    } finally {
+        loading.style.display = "none";
+        applyButton.disabled = false;
+    }
+}
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+// Load leaderboard when the page opens.
+document.addEventListener("DOMContentLoaded", loadRankings);
+
+// Apply filter when the selected category or period changes.
+document.getElementById("cat").addEventListener("change", loadRankings);
+document.getElementById("period").addEventListener("change", loadRankings);
+</script>
+{% endblock %}
+```

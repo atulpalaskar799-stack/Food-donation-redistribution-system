@@ -1,0 +1,301 @@
+
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<div class="row g-3" id="stats"></div>
+
+<div class="row mt-3 g-3">
+    <div class="col-lg-7">
+        <div class="card p-3">
+            <h5>Users & NGO Verification</h5>
+            <div class="table-responsive">
+                <table class="table" id="users"></table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-3">
+            <h5>Donation Categories</h5>
+            <canvas id="catChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- VOLUNTEER ASSIGNMENT SECTION -->
+<div class="card p-3 mt-4">
+    <h4>Assign Volunteer for Delivery</h4>
+    <p class="text-muted">
+        Select an accepted donation and an active volunteer.
+    </p>
+
+    <form id="assignForm" class="row g-3">
+        <div class="col-md-5">
+            <label class="form-label">Accepted Donation</label>
+            <select id="donationSelect" class="form-select" required>
+                <option value="">Loading donations...</option>
+            </select>
+        </div>
+
+        <div class="col-md-5">
+            <label class="form-label">Active Volunteer</label>
+            <select id="volunteerSelect" class="form-select" required>
+                <option value="">Loading volunteers...</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" id="assignBtn"
+                    class="btn btn-primary w-100">
+                Assign
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- CURRENT ASSIGNMENTS -->
+<div class="card p-3 mt-4">
+    <h4>Volunteer Delivery Tracking</h4>
+    <div class="table-responsive">
+        <table class="table" id="assignmentTable">
+            <tr>
+                <td>Loading assignments...</td>
+            </tr>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<script>
+let categoryChart = null;
+
+async function loadAdminDashboard() {
+    try {
+        const analytics = await api('/api/analytics');
+
+        document.getElementById('stats').innerHTML =
+            Object.entries(analytics.stats)
+            .slice(0, 10)
+            .map(([key, value]) => `
+                <div class="col-md-3">
+                    <div class="stat">
+                        <b>${value}</b>
+                        <span>${key.replaceAll('_', ' ')}</span>
+                    </div>
+                </div>
+            `).join('');
+
+        if (categoryChart) categoryChart.destroy();
+
+        categoryChart = new Chart(
+            document.getElementById('catChart'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: analytics.categories.map(x => x.name),
+                    datasets: [{
+                        data: analytics.categories.map(x => x.total)
+                    }]
+                }
+            }
+        );
+
+        const result = await api('/api/admin/users');
+
+        document.getElementById('users').innerHTML = `
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>NGO Verification</th>
+                <th>Action</th>
+            </tr>
+        ` + result.users.map(user => `
+            <tr>
+                <td>${user.name}</td>
+                <td>${user.role}</td>
+                <td>${user.status}</td>
+                <td>${user.verification_status || '-'}</td>
+                <td>
+                    ${user.role === 'ngo' &&
+                      user.verification_status === 'pending'
+                        ? `<button class="btn btn-sm btn-success"
+                             onclick="verifyNgo(${user.user_id})">
+                             Verify
+                           </button>
+                           <button class="btn btn-sm btn-danger"
+                             onclick="verifyNgo(${user.user_id}, 'rejected')">
+                             Reject
+                           </button>`
+                        : user.role === 'ngo'
+                            ? user.verification_status
+                            : '-'}
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        console.error(error);
+        toast(error.message || 'Dashboard load failed', true);
+    }
+}
+
+async function verifyNgo(userId, status = 'verified') {
+    try {
+        const result = await api('/api/ngo/verify', 'POST', {
+            user_id: Number(userId),
+            status: status
+        });
+
+        toast(result.message || 'NGO verification updated');
+        await loadAdminDashboard();
+
+    } catch (error) {
+        console.error(error);
+        toast(error.message || 'NGO verification failed', true);
+    }
+}
+
+async function loadAssignmentOptions() {
+    try {
+        const donationsResult = await api('/api/donations');
+        const usersResult = await api('/api/admin/users');
+
+        const donationSelect =
+            document.getElementById('donationSelect');
+
+        const volunteerSelect =
+            document.getElementById('volunteerSelect');
+
+        const acceptedDonations =
+            donationsResult.donations.filter(
+                d => d.status === 'accepted'
+            );
+
+        donationSelect.innerHTML =
+            '<option value="">Select accepted donation</option>' +
+            acceptedDonations.map(d => `
+                <option value="${d.donation_id}">
+                    ${d.food_name} - ${d.quantity} ${d.unit}
+                    (ID: ${d.donation_id})
+                </option>
+            `).join('');
+
+        const volunteers = usersResult.users.filter(
+            u => u.role === 'volunteer' && u.status === 'active'
+        );
+
+        volunteerSelect.innerHTML =
+            '<option value="">Select volunteer</option>' +
+            volunteers.map(v => `
+                <option value="${v.user_id}">
+                    ${v.name} (ID: ${v.user_id})
+                </option>
+            `).join('');
+
+        if (acceptedDonations.length === 0) {
+            donationSelect.innerHTML =
+                '<option value="">No accepted donations available</option>';
+        }
+
+        if (volunteers.length === 0) {
+            volunteerSelect.innerHTML =
+                '<option value="">No active volunteers available</option>';
+        }
+
+    } catch (error) {
+        console.error(error);
+        toast(error.message || 'Could not load assignment options', true);
+    }
+}
+
+async function loadAssignments() {
+    try {
+        const result = await api('/api/assignments');
+
+        const table = document.getElementById('assignmentTable');
+
+        table.innerHTML = `
+            <tr>
+                <th>Food</th>
+                <th>Volunteer</th>
+                <th>Pickup Status</th>
+                <th>Delivery Status</th>
+            </tr>
+        ` + result.assignments.map(a => `
+            <tr>
+                <td>${a.food_name}</td>
+                <td>${a.volunteer_name || 'Volunteer'}</td>
+                <td>${a.pickup_status}</td>
+                <td>${a.delivery_status}</td>
+            </tr>
+        `).join('');
+
+        if (result.assignments.length === 0) {
+            table.innerHTML += `
+                <tr>
+                    <td colspan="4">No assignments yet.</td>
+                </tr>
+            `;
+        }
+
+    } catch (error) {
+        console.error(error);
+        toast(error.message || 'Could not load assignments', true);
+    }
+}
+
+document.getElementById('assignForm').addEventListener(
+    'submit',
+    async function(event) {
+        event.preventDefault();
+
+        const donationId =
+            document.getElementById('donationSelect').value;
+
+        const volunteerId =
+            document.getElementById('volunteerSelect').value;
+
+        if (!donationId || !volunteerId) {
+            toast('Select both donation and volunteer', true);
+            return;
+        }
+
+        const button = document.getElementById('assignBtn');
+        button.disabled = true;
+        button.textContent = 'Assigning...';
+
+        try {
+            const result = await api('/api/assignments', 'POST', {
+                donation_id: Number(donationId),
+                volunteer_id: Number(volunteerId)
+            });
+
+            toast(result.message || 'Volunteer assigned successfully');
+
+            this.reset();
+
+            await loadAssignmentOptions();
+            await loadAssignments();
+
+        } catch (error) {
+            console.error(error);
+            toast(error.message || 'Volunteer assignment failed', true);
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Assign';
+        }
+    }
+);
+
+loadAdminDashboard();
+loadAssignmentOptions();
+loadAssignments();
+</script>
+{% endblock %}
